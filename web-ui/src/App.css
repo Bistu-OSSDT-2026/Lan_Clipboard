@@ -1,0 +1,457 @@
+/* ================================================================
+   Lan Clipboard Web UI — 样式
+   ================================================================ */
+
+/* ---------- 全局重置 ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-bg: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-border: #e0e0e0;
+  --color-text: #1d1d1f;
+  --color-text-secondary: #86868b;
+  --color-primary: #007aff;
+  --color-primary-hover: #0066d9;
+  --color-success: #34c759;
+  --color-danger: #ff3b30;
+  --color-danger-hover: #d6251a;
+  --color-bar-bg: #1d1d1f;
+  --color-bar-text: #ffffff;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+#root {
+  height: 100%;
+}
+
+/* ---------- 应用容器 ---------- */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--color-bg);
+}
+
+/* ================================================================
+   ConnectionBar — 顶部连接栏
+   ================================================================ */
+
+.connection-bar {
+  background: var(--color-bar-bg);
+  color: var(--color-bar-text);
+  padding: 14px 20px;
+  flex-shrink: 0;
+}
+
+.connection-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.connection-inputs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+.input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--color-bar-text);
+  outline: none;
+  width: 140px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.input:focus {
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.room-input {
+  width: 110px;
+}
+
+.connection-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* ---------- 状态指示灯 ---------- */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator.connected .status-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 6px rgba(52, 199, 89, 0.6);
+}
+
+.status-indicator.disconnected .status-dot {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.status-text {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-connect {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-connect:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btn-disconnect {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-bar-text);
+}
+
+.btn-disconnect:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ================================================================
+   Main Content — 中间区域
+   ================================================================ */
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+/* ================================================================
+   HistoryList — 历史记录列表
+   ================================================================ */
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ---------- 空状态 ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--color-text-secondary);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.empty-hint {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* ---------- 历史列表 ---------- */
+.history-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.2s;
+}
+
+.history-item:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-time {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.item-content {
+  font-size: 14px;
+  color: var(--color-text);
+  word-break: break-word;
+  line-height: 1.5;
+  /* 显示最多 3 行 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- 复制按钮 ---------- */
+.btn-copy {
+  flex-shrink: 0;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  margin-top: 2px;
+}
+
+.btn-copy:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.btn-copy.copied {
+  background: var(--color-success);
+  color: white;
+  border-color: var(--color-success);
+}
+
+/* ================================================================
+   SendBar — 底部发送栏
+   ================================================================ */
+
+.send-bar {
+  flex-shrink: 0;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.send-bar-inner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.send-textarea {
+  flex: 1;
+  resize: none;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.send-textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.send-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.send-textarea::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.btn-send {
+  background: var(--color-primary);
+  color: white;
+  font-size: 14px;
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  height: fit-content;
+}
+
+.btn-send:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.send-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+/* ================================================================
+   滚动条美化
+   ================================================================ */
+
+.main-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* ================================================================
+   响应式
+   ================================================================ */
+
+@media (max-width: 520px) {
+  .connection-bar-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .connection-inputs {
+    flex-wrap: wrap;
+  }
+
+  .input {
+    width: 100%;
+  }
+
+  .connection-actions {
+    justify-content: space-between;
+  }
+
+  .send-bar-inner {
+    flex-direction: column;
+  }
+
+  .btn-send {
+    width: 100%;
+  }
+}
