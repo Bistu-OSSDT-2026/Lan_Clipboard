@@ -1,0 +1,14 @@
+{
+  "name": "lan-clipboard-server",
+  "version": "1.0.0",
+  "description": "Lan Clipboard 独立服务器 — 局域网剪切板同步中心",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}
