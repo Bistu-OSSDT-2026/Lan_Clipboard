@@ -18,6 +18,7 @@
  */
 
 const express = require('express');
+const cors = require('cors');
 const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
@@ -57,6 +58,7 @@ function createServer(options = {}) {
     }
 
     const app = express();
+    app.use(cors());
     app.use(express.json());
 
     // 可选：托管 Web 前端静态文件
