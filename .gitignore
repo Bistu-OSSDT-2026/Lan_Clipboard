@@ -1,0 +1,18 @@
+# 忽略 Mac 系统自动生成的隐藏文件（必加！）
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 忽略日志文件和缓存
+*.log
+*.cache
+
+# 忽略 IDE 和编辑器配置
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+
+# 如果你用 Python 或者是前端开发，可以加上：
+__pycache__/
+node_modules/

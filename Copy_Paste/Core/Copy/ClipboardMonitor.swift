@@ -8,6 +8,8 @@ final class ClipboardMonitor {
     private var copyAlive = false
     var onTextChange: ((String) -> Void)?
     var onAliveChange: ((Bool) -> Void)?
+    private var cooldownUntil = Date.distantPast
+    
     init() {
         self.lastChangeNum = pasteBoard.changeCount
     }
@@ -29,7 +31,13 @@ final class ClipboardMonitor {
         timer = nil
     }
     
+    func setCooldown(seconds: Double) {
+        cooldownUntil = Date().addingTimeInterval(seconds)
+    }
+    
     func clipCheck() {
+        guard Date() > cooldownUntil else{return}
+        
         let currentChangeNum = pasteBoard.changeCount
         guard currentChangeNum != lastChangeNum else{
             return
