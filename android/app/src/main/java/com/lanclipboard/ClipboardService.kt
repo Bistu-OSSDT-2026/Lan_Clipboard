@@ -68,7 +68,7 @@ class ClipboardService : Service() {
             ACTION_CONNECT -> {
                 val host = intent.getStringExtra(EXTRA_HOST) ?: "localhost"
                 val room = intent.getStringExtra(EXTRA_ROOM) ?: "test"
-                connect(host, room)
+                connect(host, room = room)
             }
             ACTION_DISCONNECT -> {
                 disconnect()
