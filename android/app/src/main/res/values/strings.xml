@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lan Clipboard</string>
+    <string name="channel_name">剪贴板同步服务</string>
+    <string name="channel_desc">保持剪贴板同步的后台服务</string>
+    <string name="notification_connected">已连接 %1$s</string>
+    <string name="notification_disconnected">已断开</string>
+    <string name="notification_syncing">同步中...</string>
+</resources>
