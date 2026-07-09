@@ -5,9 +5,9 @@ const STORAGE_KEY = 'lan-clipboard-web-config'
 function loadConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : { server: '127.0.0.1', room: 'myroom' }
+    return raw ? JSON.parse(raw) : { server: '127.0.0.1', room: 'office' }
   } catch {
-    return { server: '127.0.0.1', room: 'myroom' }
+    return { server: '127.0.0.1', room: 'office' }
   }
 }
 

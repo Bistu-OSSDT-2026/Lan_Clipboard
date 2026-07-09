@@ -72,7 +72,7 @@ const icons = {
 /**
  * 创建系统托盘
  * @param {{ server: string, room: string }} config
- * @param {{ onShowConfig: () => void, onQuit: () => void }} callbacks
+ * @param {{ onShow: () => void, onQuit: () => void }} callbacks
  * @returns {{ updateStatus: (status: string) => void }}
  */
 function createTray(config, callbacks) {
@@ -104,8 +104,8 @@ function createTray(config, callbacks) {
             },
             { type: 'separator' },
             {
-                label: '⚙ 设置',
-                click: () => callbacks.onShowConfig()
+                label: '📋 显示主窗口',
+                click: () => callbacks.onShow()
             },
             { type: 'separator' },
             {
@@ -117,9 +117,9 @@ function createTray(config, callbacks) {
 
     tray.setContextMenu(buildMenu());
 
-    // 双击托盘图标打开设置
+    // 双击托盘图标显示主窗口
     tray.on('double-click', () => {
-        callbacks.onShowConfig();
+        callbacks.onShow();
     });
 
     return {

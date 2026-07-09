@@ -274,7 +274,7 @@ function createServer(options = {}) {
             console.log(`[Server] Lan Clipboard 已启动`);
             console.log(`[Server] 本机访问:    http://localhost:${PORT}`);
             console.log(`[Server] 局域网访问:  http://${localIP}:${PORT}`);
-            console.log(`[Server] WebSocket:   ws://${localIP}:${PORT}/<房间名>`);
+            console.log(`[Server] WebSocket:   ws://${localIP}:${PORT}/office`);
             console.log(`[Server] 数据目录:    ${DATA_DIR}`);
             console.log('');
         });

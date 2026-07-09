@@ -1,217 +1,153 @@
 /**
  * Lan Clipboard — 剪贴板同步引擎（sync.js）
- *
- * 职责：
- * 1. WebSocket 连接到服务器（含自动重连）
- * 2. 心跳保活（每 30 秒 ping）
- * 3. 剪贴板轮询（每 1 秒检测变化）
- * 4. 发送文本到服务器
- * 5. 接收文本并写入剪贴板
- * 6. 防循环（收到消息后 3 秒冷却）
+ * Ctrl+C 复制 → 自动检测 → WebSocket 发送 → 服务器广播
  */
 
 const WebSocket = require('ws');
 const { clipboard } = require('electron');
 
-// ── 内部状态 ────────────────────────────────────────────────
-let ws = null;                  // WebSocket 实例
-let config = null;              // 当前配置 { server, room }
-let onStatusChange = null;      // 状态回调
+let ws = null, config = null, callbacks = {};
+let lastText = '';
+let cooldownUntil = 0;
+let lastReceivedText = '';    // 去重用
+let pollCount = 0;
+let pollTimer = null, pingTimer = null, reconnectTimer = null;
 
-let lastText = '';              // 上一次剪贴板内容（用于变化检测）
-let cooldownUntil = 0;          // 冷却截止时间戳（防循环）
+// ── 公开 API ──
 
-let pollTimer = null;           // 剪贴板轮询定时器
-let pingTimer = null;           // 心跳定时器
-let reconnectTimer = null;      // 重连定时器
-
-// ── 公开 API ────────────────────────────────────────────────
-
-/**
- * 启动同步引擎
- * @param {{ server: string, room: string }} cfg
- * @param {(status: string) => void} statusCallback
- */
-function startSync(cfg, statusCallback) {
+function startSync(cfg, cbs) {
     config = cfg;
-    onStatusChange = statusCallback;
+    callbacks = cbs || {};
+    console.log('[Sync] 启动 ->', cfg.server, '/', cfg.room);
     connect();
     startPolling();
 }
 
-/**
- * 停止同步引擎（退出时调用）
- */
 function stopSync() {
-    stopPolling();
-    stopPing();
-    clearReconnectTimer();
-    if (ws) {
-        try { ws.close(); } catch (_) { /* ignore */ }
-        ws = null;
-    }
+    stopPolling(); stopPing(); clearReconnectTimer();
+    if (ws) { try { ws.close(); } catch (_) {} ws = null; }
 }
 
-/**
- * 更新配置（设置页保存后调用，会断开重连）
- * @param {{ server?: string, room?: string }} newCfg
- */
 function updateConfig(newCfg) {
     config = { ...config, ...newCfg };
     stopSync();
-    startSync(config, onStatusChange);
+    startSync(config, callbacks);
 }
 
-// ── WebSocket 连接 ──────────────────────────────────────────
+function sendText(text) {
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify({ type: 'text', data: text, timestamp: Date.now() }));
+    return true;
+}
+
+// ── WebSocket ──
 
 function connect() {
-    if (ws) {
-        try { ws.close(); } catch (_) { /* ignore */ }
-        ws = null;
-    }
-
+    if (ws) { try { ws.close(); } catch (_) {} ws = null; }
     const url = `ws://${config.server}:3000/${config.room}`;
     emitStatus('connecting');
-
-    try {
-        ws = new WebSocket(url);
-    } catch (_) {
-        emitStatus('disconnected');
-        scheduleReconnect();
-        return;
-    }
+    try { ws = new WebSocket(url); } catch (_) { emitStatus('disconnected'); scheduleReconnect(); return; }
 
     ws.on('open', () => {
-        emitStatus('connected');
-        startPing();
-        clearReconnectTimer();
+        console.log('[Sync] WebSocket 已连接');
+        emitStatus('connected'); startPing(); clearReconnectTimer();
     });
-
-    ws.on('message', (data) => {
-        handleMessage(data);
-    });
-
+    ws.on('message', d => handleMessage(d));
     ws.on('close', () => {
-        emitStatus('disconnected');
-        stopPing();
-        scheduleReconnect();
+        console.log('[Sync] WebSocket 断开');
+        emitStatus('disconnected'); stopPing(); scheduleReconnect();
     });
-
-    ws.on('error', () => {
-        // close 事件会在 error 后自动触发，这里不用额外处理
-    });
+    ws.on('error', e => console.log('[Sync] 错误:', e.message));
 }
-
-// ── 消息处理 ────────────────────────────────────────────────
 
 function handleMessage(data) {
     try {
         const msg = JSON.parse(data.toString());
-        if (msg.type === 'text' && typeof msg.data === 'string' && msg.data.length > 0) {
-            // 设置冷却期，防止写入剪贴板后触发本地上传
-            cooldownUntil = Date.now() + 3000;
-            // 写入系统剪贴板
-            clipboard.writeText(msg.data);
-            // 更新本地缓存，避免轮询时误判为变化
+        if (msg.type === 'text' && msg.data) {
+            // 去重：重复消息不处理，避免 Mac 刷屏导致冷却永不过期
+            if (msg.data === lastReceivedText) return;
+            lastReceivedText = msg.data;
+
+            console.log('[Sync] 收到远程:', msg.data.substring(0, 40));
             lastText = msg.data;
+            cooldownUntil = Date.now() + 2000;
+            clipboard.writeText(msg.data);
+            emitTextReceived(msg.data);
         }
-        // pong 消息不需要处理，收到即表示连接正常
-    } catch (_) {
-        // 非 JSON 或格式不符，忽略
-    }
+    } catch (_) {}
 }
 
-// ── 心跳 ────────────────────────────────────────────────────
+// ── 心跳 / 重连 ──
 
 function startPing() {
     stopPing();
     pingTimer = setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-        }
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
     }, 30000);
 }
-
-function stopPing() {
-    if (pingTimer) {
-        clearInterval(pingTimer);
-        pingTimer = null;
-    }
-}
-
-// ── 重连 ────────────────────────────────────────────────────
+function stopPing() { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } }
 
 function scheduleReconnect() {
-    if (reconnectTimer) return; // 已有重连计划
+    if (reconnectTimer) return;
     emitStatus('reconnecting');
-    reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        connect();
-    }, 5000);
+    reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, 5000);
 }
+function clearReconnectTimer() { if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; } }
 
-function clearReconnectTimer() {
-    if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-    }
-}
-
-// ── 剪贴板轮询 ──────────────────────────────────────────────
+// ── 剪贴板轮询（核心！Ctrl+C 自动检测并发送）──
 
 function startPolling() {
     stopPolling();
-    // 记录当前剪贴板内容作为基线
-    try {
-        lastText = clipboard.readText() || '';
-    } catch (_) {
-        lastText = '';
-    }
+    try { lastText = clipboard.readText() || ''; } catch (_) { lastText = ''; }
+    console.log('[Sync] 轮询启动, 当前剪贴板:', JSON.stringify(lastText));
 
     pollTimer = setInterval(() => {
+        pollCount++;
         try {
+            const now = Date.now();
             const current = clipboard.readText() || '';
 
-            // 冷却期内不触发上传（防循环）
-            if (Date.now() < cooldownUntil) return;
+            // 每 5 次轮询打印一次剪贴板状态（诊断用）
+            if (pollCount % 5 === 1) {
+                console.log('[Sync] 轮询#' + pollCount,
+                    '剪贴板:', JSON.stringify(current.substring(0, 30)),
+                    'lastText:', JSON.stringify(lastText.substring(0, 30)),
+                    '冷却:', now < cooldownUntil ? '是' : '否');
+            }
 
-            // 无变化，跳过
+            // 冷却中，跳过
+            if (now < cooldownUntil) return;
+
+            // 没变化
             if (current === lastText) return;
-
-            // 忽略空文本
+            // 空文本
             if (current === '') return;
 
+            // === 检测到剪贴板变化 ===
+            console.log('[Sync] ⬆️ 检测到 Ctrl+C! 内容:', current.substring(0, 50));
             lastText = current;
+            cooldownUntil = now + 2000;
 
-            // 通过 WebSocket 发出
+            emitTextSentLocal(current);
+
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'text',
-                    data: current,
-                    timestamp: Date.now()
-                }));
+                ws.send(JSON.stringify({ type: 'text', data: current, timestamp: now }));
+                console.log('[Sync] ✅ 已发送');
+            } else {
+                console.log('[Sync] ❌ ws未连接');
             }
-        } catch (_) {
-            // 剪贴板读取失败，忽略
+        } catch (e) {
+            console.error('[Sync] 轮询崩溃:', e);
         }
-    }, 1000);
+    }, 500);
 }
 
-function stopPolling() {
-    if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-    }
-}
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
-// ── 内部辅助 ────────────────────────────────────────────────
+// ── 内部 ──
 
-function emitStatus(status) {
-    if (typeof onStatusChange === 'function') {
-        onStatusChange(status);
-    }
-}
+function emitStatus(s) { if (callbacks.onStatusChange) callbacks.onStatusChange(s); }
+function emitTextReceived(t) { if (callbacks.onTextReceived) callbacks.onTextReceived(t); }
+function emitTextSentLocal(t) { if (callbacks.onTextSentLocal) callbacks.onTextSentLocal(t); }
 
-// ── 导出 ────────────────────────────────────────────────────
-
-module.exports = { startSync, stopSync, updateConfig };
+module.exports = { startSync, stopSync, updateConfig, sendText };
