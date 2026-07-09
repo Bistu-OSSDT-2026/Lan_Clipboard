@@ -27,17 +27,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Download Gradle
+      - name: Setup Android SDK
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-          unzip -q gradle-8.2-bin.zip
-          echo "$PWD/gradle-8.2/bin" >> $GITHUB_PATH
+          # Download Android command line tools
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mv cmdline-tools latest
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.2
+      - name: Accept Android Licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Install Android SDK Components
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
