@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 简单剪贴板图标 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 背景圆 -->
+    <path
+        android:fillColor="#007AFF"
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0" />
+    <!-- 剪贴板主体 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,30h32v36H38V30z" />
+    <!-- 顶部夹子 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,25h20v8H44V25z" />
+    <!-- 内容线条 -->
+    <path android:fillColor="#007AFF" android:pathData="M43,42h22v3H43z" />
+    <path android:fillColor="#007AFF" android:pathData="M43,50h18v3H43z" />
+    <path android:fillColor="#007AFF" android:pathData="M43,58h15v3H43z" />
+</vector>
