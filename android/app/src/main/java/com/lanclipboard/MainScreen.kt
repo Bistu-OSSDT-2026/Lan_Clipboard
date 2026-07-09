@@ -33,8 +33,10 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun MainScreen(
     state: ConnectionState,
+    a11yEnabled: Boolean = false,
     onConnect: (host: String, room: String) -> Unit,
-    onDisconnect: () -> Unit
+    onDisconnect: () -> Unit,
+    onOpenAccessibility: () -> Unit = {}
 ) {
     var host by remember { mutableStateOf("") }
     var room by remember { mutableStateOf("test") }
@@ -135,6 +137,42 @@ fun MainScreen(
                             )
                         ) {
                             Text("断开连接")
+                        }
+                    }
+                }
+            }
+
+            // ============================================================
+            // 无障碍服务状态
+            // ============================================================
+            if (!a11yEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFF3E0)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("⚠️", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "无障碍服务未开启",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFE65100)
+                            )
+                            Text(
+                                "后台剪贴板同步需要此权限",
+                                fontSize = 12.sp,
+                                color = Color(0xFFBF360C).copy(alpha = 0.7f)
+                            )
+                        }
+                        TextButton(onClick = onOpenAccessibility) {
+                            Text("去开启", fontSize = 13.sp, color = Color(0xFFE65100))
                         }
                     }
                 }

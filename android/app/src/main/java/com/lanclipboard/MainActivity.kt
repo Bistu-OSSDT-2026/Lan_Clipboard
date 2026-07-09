@@ -1,22 +1,25 @@
 package com.lanclipboard
 
 import android.Manifest
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * MainActivity — 应用入口（参照 macOS Copy_PasteApp）
  *
  * 职责：
  * - 请求通知权限（Android 13+）
+ * - 检测无障碍服务状态
  * - 管理前台 ClipboardService 的启停
  * - 渲染 Compose UI
  */
@@ -25,6 +28,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_HOST = "host"
         const val EXTRA_ROOM = "room"
+        const val PREFS_NAME = "lan_clipboard_prefs"
+        const val PREF_HOST = "host"
+        const val PREF_ROOM = "room"
     }
 
     private var hasNotificationPermission = false
@@ -53,16 +59,46 @@ class MainActivity : ComponentActivity() {
             hasNotificationPermission = true
         }
 
+        // 加载保存的配置
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val savedHost = prefs.getString(PREF_HOST, "") ?: ""
+        val savedRoom = prefs.getString(PREF_ROOM, "test") ?: "test"
+
+        // 检查无障碍服务是否开启
+        val a11yEnabled = isAccessibilityServiceEnabled()
+
         setContent {
             Material3Theme {
-                var connectionState by remember { mutableStateOf(ConnectionState()) }
+                var connectionState by remember { mutableStateOf(ConnectionState(host = savedHost, room = savedRoom)) }
 
                 MainScreen(
                     state = connectionState,
-                    onConnect = { host, room -> connect(host, room) },
-                    onDisconnect = { disconnect() }
+                    a11yEnabled = a11yEnabled,
+                    onConnect = { host, room ->
+                        // 持久化配置
+                        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                            .putString(PREF_HOST, host)
+                            .putString(PREF_ROOM, room)
+                            .apply()
+                        connect(host, room)
+                    },
+                    onDisconnect = { disconnect() },
+                    onOpenAccessibility = {
+                        startActivity(android.content.Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    }
                 )
             }
+        }
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val am = getSystemService(ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices = am.getEnabledAccessibilityServiceList(
+            AccessibilityServiceInfo.FEEDBACK_ALL_MASK
+        )
+        return enabledServices.any {
+            it.resolveInfo.serviceInfo.packageName == packageName &&
+            it.resolveInfo.serviceInfo.name == ClipboardAccessibilityService::class.java.name
         }
     }
 

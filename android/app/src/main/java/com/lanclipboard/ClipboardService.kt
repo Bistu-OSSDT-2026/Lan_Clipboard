@@ -37,6 +37,9 @@ class ClipboardService : Service() {
         const val HEARTBEAT_INTERVAL = 30_000L
         const val RECONNECT_DELAY = 5_000L
         const val COOLDOWN_SECONDS = 3L
+        const val PREFS_NAME = "lan_clipboard_prefs"
+        const val PREF_HOST = "host"
+        const val PREF_ROOM = "room"
 
         // Intent extras
         const val EXTRA_HOST = "host"
@@ -84,20 +87,33 @@ class ClipboardService : Service() {
         super.onCreate()
         createNotificationChannel()
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        // 注册无障碍服务广播接收器
         registerReceiver(a11yReceiver, IntentFilter(ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED), RECEIVER_NOT_EXPORTED)
+
+        // 加载保存的配置
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        savedHost = prefs.getString(PREF_HOST, "") ?: ""
+        savedRoom = prefs.getString(PREF_ROOM, "") ?: ""
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_CONNECT -> {
-                val host = intent.getStringExtra(EXTRA_HOST) ?: "localhost"
-                val room = intent.getStringExtra(EXTRA_ROOM) ?: "test"
-                connect(host, room = room)
+                val host = intent.getStringExtra(EXTRA_HOST) ?: savedHost
+                val room = intent.getStringExtra(EXTRA_ROOM) ?: savedRoom
+                if (host.isNotEmpty()) {
+                    connect(host, room = room)
+                }
             }
             ACTION_DISCONNECT -> {
                 disconnect()
                 stopSelf()
+            }
+            null -> {
+                // 无 action 时自动重连（开机自启或服务被系统重建）
+                // 注意：connect() 内部已有去重，多次调用安全
+                if (savedHost.isNotEmpty()) {
+                    connect(savedHost, room = savedRoom)
+                }
             }
         }
         return START_STICKY
@@ -110,11 +126,29 @@ class ClipboardService : Service() {
     // ================================================================
 
     fun connect(host: String, port: Int = 3000, room: String) {
+        // 如果已经连接到同一地址，跳过
+        if (isConnected && savedHost == host && savedRoom == room) {
+            Log.d(TAG, "[WS] 已连接，跳过重复连接")
+            return
+        }
+
         savedHost = host
         savedRoom = room
 
-        // 断开旧连接，防止堆积
+        // 持久化配置
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+            .putString(PREF_HOST, host)
+            .putString(PREF_ROOM, room)
+            .apply()
+
+        // 先标记断开 + 取消待处理的重连，防止旧连接 onClosed 触发新的重连风暴
+        isConnected = false
+        reconnectPending = false
+        mainHandler.removeCallbacksAndMessages(null)
+
+        // 清理旧连接
         stopHeartbeat()
+        stopClipboardMonitoring()
         webSocket?.close(1000, "重连")
         webSocket = null
 
@@ -144,7 +178,8 @@ class ClipboardService : Service() {
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d(TAG, "[WS] 已关闭: $code $reason")
-                if (isConnected) {
+                // 只有当前活跃的 WebSocket 断开才触发重连，防止旧连接关闭引发重连风暴
+                if (webSocket == this@ClipboardService.webSocket && isConnected) {
                     isConnected = false
                     updateNotification(getString(R.string.notification_disconnected))
                     scheduleReconnect()
@@ -153,7 +188,7 @@ class ClipboardService : Service() {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "[WS] 错误: ${t.message}")
-                if (isConnected) {
+                if (webSocket == this@ClipboardService.webSocket && isConnected) {
                     isConnected = false
                     updateNotification(getString(R.string.notification_disconnected))
                     scheduleReconnect()
@@ -169,6 +204,7 @@ class ClipboardService : Service() {
         webSocket?.close(1000, "用户断开")
         webSocket = null
         mainHandler.removeCallbacksAndMessages(null)
+        // 不断开时保留配置，下次启动可自动重连
     }
 
     // ================================================================

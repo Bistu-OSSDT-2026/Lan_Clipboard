@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import androidx.core.content.ContextCompat
 
 /**
  * ClipboardAccessibilityService — 无障碍服务
@@ -38,7 +39,7 @@ class ClipboardAccessibilityService : AccessibilityService() {
         if (text.isEmpty() || text == lastContent) return@OnPrimaryClipChangedListener
 
         lastContent = text
-        Log.d(TAG, "[A11y] 检测到剪贴板变化: ${text.take(30)}...")
+        Log.i(TAG, "[A11y] 检测到剪贴板变化: ${text.take(30)}...")
 
         // 通过广播通知 ClipboardService
         val intent = Intent(ACTION_CLIPBOARD_CHANGED).apply {
@@ -50,12 +51,21 @@ class ClipboardAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.d(TAG, "[A11y] 无障碍服务已启动")
+        Log.i(TAG, "[A11y] 无障碍服务已启动")
 
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         lastContent = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
         clipboardManager?.addPrimaryClipChangedListener(clipListener)
-        Log.d(TAG, "[A11y] 开始监听剪贴板（无障碍模式）")
+        Log.i(TAG, "[A11y] 开始监听剪贴板（无障碍模式）")
+
+        // 自动启动 ClipboardService（加载保存的配置并连接 WebSocket）
+        val serviceIntent = Intent(this, ClipboardService::class.java)
+        try {
+            ContextCompat.startForegroundService(this, serviceIntent)
+            Log.i(TAG, "[A11y] 已拉起 ClipboardService")
+        } catch (e: Exception) {
+            Log.e(TAG, "[A11y] 拉起 ClipboardService 失败: ${e.message}")
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
