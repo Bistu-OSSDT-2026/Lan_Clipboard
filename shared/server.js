@@ -148,6 +148,22 @@ function createServer(options = {}) {
     const server = http.createServer(app);
     const wss = new WebSocket.Server({ noServer: true });
 
+    // 禁用 HTTP 超时，避免 WebSocket 长连接被切断
+    server.timeout = 0;
+    server.keepAliveTimeout = 0;
+    server.headersTimeout = 0;
+
+    // 服务端每 30 秒向所有客户端发 ping，保活连接
+    const serverPing = setInterval(() => {
+        for (const [, room] of rooms) {
+            for (const client of room) {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.ping();  // ws 库内置 ping 帧
+                }
+            }
+        }
+    }, 30000);
+
     /**
      * 房间管理
      * 结构：Map<房间名, Set<WebSocket>>
