@@ -25,7 +25,12 @@ function startSync(cfg, cbs) {
 
 function stopSync() {
     stopPolling(); stopPing(); clearReconnectTimer();
-    if (ws) { try { ws.close(); } catch (_) {} ws = null; }
+    if (ws) {
+        ws.removeAllListeners('close');  // 阻止自动重连
+        try { ws.close(); } catch (_) {}
+        ws = null;
+    }
+    emitStatus('disconnected');
 }
 
 function updateConfig(newCfg) {
