@@ -5,8 +5,11 @@ out/
 build/
 *.log
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
 Desktop.ini
+*.cache
 
 # ====== 服务器（shared/）======
 shared/node_modules/
@@ -54,8 +57,13 @@ userData/
 .idea/
 *.swp
 *.swo
+*.suo
+*.ntvs*
 *.sublime-workspace
 *.sublime-project
+
+# ====== Python ======
+__pycache__/
 
 # ====== 环境变量 ======
 .env
